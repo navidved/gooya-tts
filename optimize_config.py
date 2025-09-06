@@ -1,4 +1,4 @@
-# optimize_config.py - نسخه اصلاح شده
+# optimize_config.py - نسخه کامل اصلاح شده
 import json
 import torch
 import os
@@ -6,7 +6,7 @@ from pathlib import Path
 
 def calculate_optimal_batch_size(vram_gb=140):
     """محاسبه batch_size بهینه بر اساس VRAM"""
-    if vram_gb >= 139:
+    if vram_gb >= 139:  # برای H200
         return 128
     elif vram_gb >= 80:
         return 64
@@ -48,7 +48,7 @@ def create_optimized_config():
             "eps": 1e-09,
             "batch_size": optimal_batch,
             "fp16_run": False,
-            "bf16_run": True,  # BF16 برای H200
+            "bf16_run": True,
             "lr_decay": 0.999875,
             "segment_size": 8192,
             "init_lr_ratio": 1,
@@ -60,8 +60,8 @@ def create_optimized_config():
             "checkpoint_interval": 5000,
         },
         "data": {
-            "training_files": train_path,  # مسیر کامل
-            "validation_files": val_path,  # مسیر کامل
+            "training_files": train_path,
+            "validation_files": val_path,
             "text_cleaners": ["basic_cleaners"],
             "max_wav_value": 32768.0,
             "sampling_rate": 22050,
@@ -82,6 +82,7 @@ def create_optimized_config():
             "use_spk_conditioned_encoder": False,
             "use_noise_scaled_mas": True,
             "use_duration_discriminator": True,
+            "duration_discriminator_type": "dur_disc_1",  # اضافه شد
             "inter_channels": 256,
             "hidden_channels": 256,
             "filter_channels": 1024,
@@ -97,7 +98,8 @@ def create_optimized_config():
             "upsample_kernel_sizes": [16, 16, 4, 4],
             "n_layers_q": 3,
             "use_spectral_norm": False,
-            "use_sdp": True
+            "use_sdp": True,
+            "gin_channels": 256  # اضافه شد
         }
     }
     
@@ -112,8 +114,8 @@ def create_optimized_config():
     
     # نسخه با فونم
     config_phoneme = config.copy()
-    config_phoneme["data"]["training_files"] = train_phoneme_path  # مسیر کامل
-    config_phoneme["data"]["validation_files"] = val_phoneme_path  # مسیر کامل
+    config_phoneme["data"]["training_files"] = train_phoneme_path
+    config_phoneme["data"]["validation_files"] = val_phoneme_path
     config_phoneme["data"]["text_cleaners"] = []
     config_phoneme["data"]["cleaned_text"] = True
     
@@ -133,18 +135,6 @@ def create_optimized_config():
     print(f"  - Attention heads: 4")
     print(f"  - Transformer layers: 8")
     print(f"  - Workers: {config['train']['num_workers']}")
-    
-    # تخمین سرعت آموزش
-    print(f"\n⏱️ Training estimates for H200:")
-    print(f"  - Steps per epoch: ~{6500/optimal_batch:.0f}")
-    print(f"  - Estimated speed: ~{optimal_batch*2:.0f} samples/sec")
-    print(f"  - Time per epoch: ~{6500/optimal_batch/60:.1f} minutes")
-    print(f"  - To 200k steps: ~15-20 hours")
-    
-    print(f"\n💡 Tips for H200:")
-    print(f"  1. You can try batch_size=160 or even 192")
-    print(f"  2. Use torch.compile() for 20-30% speedup")
-    print(f"  3. Enable Flash Attention 2 in training script")
 
 if __name__ == "__main__":
     create_optimized_config()

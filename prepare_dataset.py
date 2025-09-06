@@ -1,6 +1,7 @@
 import os
 import re
 import random
+from pathlib import Path
 import unicodedata
 import soundfile as sf
 import librosa
@@ -111,7 +112,7 @@ def main():
             
             # ذخیره فایل WAV
             filename = f"sample_{idx:06d}.wav"
-            filepath = os.path.join(OUT_WAV_DIR, filename)
+            filepath = str(Path.cwd() / OUT_WAV_DIR / filename)
             
             # ذخیره با کیفیت 16-bit PCM
             sf.write(filepath, audio_array, SR, subtype="PCM_16")
