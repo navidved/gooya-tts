@@ -159,7 +159,9 @@ python check_setup.py
 ### شروع آموزش
 
 ```bash
-./train_persian_tts.sh
+chmod +x train_gooya_tts.sh
+
+./train_gooya_tts.sh
 # برای خروج از tmux: Ctrl+B then D
 # برای برگشت: tmux attach -t vits2_training
 ```

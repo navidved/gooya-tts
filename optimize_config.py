@@ -1,3 +1,4 @@
+# optimize_config.py - نسخه اصلاح شده
 import json
 import torch
 import os
@@ -28,6 +29,13 @@ def create_optimized_config():
     # محاسبه تنظیمات بهینه
     optimal_batch = calculate_optimal_batch_size(vram_gb)
     
+    # مسیرهای کامل برای فایل‌های داده
+    gooya_path = Path.home() / "gooya-tts"
+    train_path = str(gooya_path / "filelists/train.txt")
+    val_path = str(gooya_path / "filelists/val.txt")
+    train_phoneme_path = str(gooya_path / "filelists/train_phoneme.txt")
+    val_phoneme_path = str(gooya_path / "filelists/val_phoneme.txt")
+    
     config = {
         "train": {
             "log_interval": 100,
@@ -52,8 +60,8 @@ def create_optimized_config():
             "checkpoint_interval": 5000,
         },
         "data": {
-            "training_files": "filelists/train.txt",
-            "validation_files": "filelists/val.txt",
+            "training_files": train_path,  # مسیر کامل
+            "validation_files": val_path,  # مسیر کامل
             "text_cleaners": ["basic_cleaners"],
             "max_wav_value": 32768.0,
             "sampling_rate": 22050,
@@ -74,7 +82,7 @@ def create_optimized_config():
             "use_spk_conditioned_encoder": False,
             "use_noise_scaled_mas": True,
             "use_duration_discriminator": True,
-            "inter_channels": 256,  # بزرگتر برای H200
+            "inter_channels": 256,
             "hidden_channels": 256,
             "filter_channels": 1024,
             "n_heads": 4,
@@ -104,8 +112,8 @@ def create_optimized_config():
     
     # نسخه با فونم
     config_phoneme = config.copy()
-    config_phoneme["data"]["training_files"] = "filelists/train_phoneme.txt"
-    config_phoneme["data"]["validation_files"] = "filelists/val_phoneme.txt"
+    config_phoneme["data"]["training_files"] = train_phoneme_path  # مسیر کامل
+    config_phoneme["data"]["validation_files"] = val_phoneme_path  # مسیر کامل
     config_phoneme["data"]["text_cleaners"] = []
     config_phoneme["data"]["cleaned_text"] = True
     
