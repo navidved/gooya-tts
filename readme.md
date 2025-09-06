@@ -58,6 +58,12 @@ nvidia-smi
 # کلون repository
 git clone https://github.com/p0p4k/vits2_pytorch.git
 
+git clone https://github.com/navidved/gooya-tts.git
+
+.
+├── gooya-tts
+└── vits2_pytorch
+
 # ایجاد محیط مجازی
 cd ~/vits2_pytorch
 python3 -m venv venv
@@ -103,7 +109,10 @@ pip install "datasets==2.18.0" --no-deps --force-reinstall
 cd monotonic_align
 mkdir -p monotonic_align
 python setup.py build_ext --inplace
-cd ..
+
+
+cd ~/gooya-tts
+pip install -r req.txt
 
 # اجرا tmux
 tmux
@@ -143,22 +152,13 @@ python optimize_config.py
 
 ## 🔍 بررسی‌های قبل از شروع
 
-# 1. مطمئن شوید در دایرکتوری درست هستید
-cd ~/vits2_pytorch
+```bash
+python check_setup.py
+```
 
-# 2. بررسی فایل‌های مورد نیاز
-echo "Checking files..."
-[ -f "train.py" ] && echo "✓ train.py found" || echo "✗ train.py not found"
-[ -f "configs/vits2_persian.json" ] && echo "✓ Config found" || echo "✗ Config not found"
-[ -f "/home/modir/gooya-tts/filelists/train.txt" ] && echo "✓ Train data found" || echo "✗ Train data not found"
-
-# 3. بررسی GPU
-nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
-
-### ایجاد اسکریپت آموزش
+### شروع آموزش
 
 ```bash
-# اجرای آموزش
 ./train_persian_tts.sh
 # برای خروج از tmux: Ctrl+B then D
 # برای برگشت: tmux attach -t vits2_training
