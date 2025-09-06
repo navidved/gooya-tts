@@ -5,9 +5,8 @@ import unicodedata
 import soundfile as sf
 import librosa
 import numpy as np
-from datasets import load_dataset, Audio
+from datasets import load_dataset
 from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -64,82 +63,132 @@ def normalize_persian_text(text):
     # تبدیل گیومه فارسی
     text = re.sub(r"[«»]", "\"", text)
     
-    # حذف کاراکترهای غیرضروری (فقط فارسی، انگلیسی و علائم نگارشی)
+    # حذف کاراکترهای غیرضروری
     text = re.sub(r'[^\u0600-\u06FF\u0020-\u007E\s]', '', text)
     
     return text.strip()
 
-def process_audio(audio, sr):
-    """پردازش صوتی"""
-    # حذف سکوت
-    audio, _ = librosa.effects.trim(audio, top_db=20)
-    
-    # نرمال‌سازی
-    peak = np.abs(audio).max()
-    if peak > 0:
-        audio = (0.95 / peak) * audio
-    
-    # حذف DC offset
-    audio = audio - np.mean(audio)
-    
-    return audio
-
-def process_single_item(args):
-    """پردازش یک نمونه"""
-    idx, item, sr_target = args
-    
+def process_audio(audio_path, target_sr=22050):
+    """بارگذاری و پردازش صوتی"""
     try:
-        # نرمال‌سازی متن
-        text = normalize_persian_text(item["sentence"])
+        # بارگذاری با librosa
+        audio, sr = librosa.load(audio_path, sr=target_sr, mono=True)
         
-        # بررسی طول متن
-        if len(text) < 5 or len(text) > 500:
-            return None
+        # حذف سکوت
+        audio, _ = librosa.effects.trim(audio, top_db=20)
         
-        # پردازش صدا
-        audio = item["audio"]["array"]
-        audio = process_audio(audio, item["audio"]["sampling_rate"])
+        # نرمال‌سازی
+        peak = np.abs(audio).max()
+        if peak > 0:
+            audio = (0.95 / peak) * audio
         
-        # بررسی مدت زمان
-        duration = len(audio) / sr_target
-        if duration < MIN_DUR or duration > MAX_DUR:
-            return None
+        # حذف DC offset
+        audio = audio - np.mean(audio)
         
-        # ذخیره فایل
-        filename = f"sample_{idx:06d}.wav"
-        filepath = os.path.join(OUT_WAV_DIR, filename)
-        sf.write(filepath, audio, sr_target, subtype="PCM_16")
-        
-        return (filepath, text, duration)
-    
+        return audio, target_sr
     except Exception as e:
-        print(f"Error processing item {idx}: {e}")
-        return None
+        print(f"Error loading audio {audio_path}: {e}")
+        return None, None
 
 def main():
     print("🔄 Loading dataset from HuggingFace...")
+    
+    # لود دیتاست بدون Audio casting
     ds = load_dataset(HF_DATASET, split="train")
-    ds = ds.cast_column("audio", Audio(sampling_rate=SR))
     
     print(f"📊 Total samples in dataset: {len(ds)}")
     
-    # پردازش موازی
-    print("🎵 Processing audio samples...")
-    with ProcessPoolExecutor(max_workers=8) as executor:
-        args = [(idx, item, SR) for idx, item in enumerate(ds)]
-        results = list(tqdm(
-            executor.map(process_single_item, args),
-            total=len(ds),
-            desc="Processing"
-        ))
+    samples = []
+    skipped = 0
     
-    # فیلتر نتایج
-    samples = [r for r in results if r is not None]
+    print("🎵 Processing audio samples...")
+    for idx, item in enumerate(tqdm(ds, desc="Processing")):
+        try:
+            # نرمال‌سازی متن
+            text = normalize_persian_text(item["sentence"])
+            
+            # بررسی طول متن
+            if len(text) < 5 or len(text) > 500:
+                skipped += 1
+                continue
+            
+            # مسیر فایل صوتی
+            # فرض می‌کنیم audio field حاوی path یا bytes است
+            audio_data = item["audio"]
+            
+            # اگر audio یک dictionary است با array و sampling_rate
+            if isinstance(audio_data, dict) and 'array' in audio_data:
+                audio_array = np.array(audio_data['array'])
+                original_sr = audio_data.get('sampling_rate', SR)
+                
+                # resample اگر نیاز است
+                if original_sr != SR:
+                    audio_array = librosa.resample(audio_array, orig_sr=original_sr, target_sr=SR)
+                
+            # اگر audio یک path است
+            elif isinstance(audio_data, str):
+                audio_array, _ = process_audio(audio_data, SR)
+                if audio_array is None:
+                    skipped += 1
+                    continue
+            
+            # اگر audio یک bytes object است
+            elif isinstance(audio_data, bytes):
+                # ذخیره موقت و بارگذاری
+                temp_path = f"/tmp/temp_audio_{idx}.wav"
+                with open(temp_path, 'wb') as f:
+                    f.write(audio_data)
+                audio_array, _ = process_audio(temp_path, SR)
+                os.remove(temp_path)
+                if audio_array is None:
+                    skipped += 1
+                    continue
+            else:
+                # تلاش برای تبدیل مستقیم
+                try:
+                    audio_array = np.array(audio_data)
+                except:
+                    print(f"Unknown audio format for item {idx}")
+                    skipped += 1
+                    continue
+            
+            # پردازش صدا
+            # حذف سکوت
+            audio_array, _ = librosa.effects.trim(audio_array, top_db=20)
+            
+            # نرمال‌سازی
+            peak = np.abs(audio_array).max()
+            if peak > 0:
+                audio_array = (0.95 / peak) * audio_array
+            
+            # بررسی مدت زمان
+            duration = len(audio_array) / SR
+            if duration < MIN_DUR or duration > MAX_DUR:
+                skipped += 1
+                continue
+            
+            # ذخیره فایل WAV
+            filename = f"sample_{idx:06d}.wav"
+            filepath = os.path.join(OUT_WAV_DIR, filename)
+            sf.write(filepath, audio_array, SR, subtype="PCM_16")
+            
+            samples.append((filepath, text, duration))
+            
+        except Exception as e:
+            print(f"Error processing item {idx}: {e}")
+            skipped += 1
+            continue
+    
+    print(f"\n📊 Processing complete:")
+    print(f"  - Valid samples: {len(samples)}")
+    print(f"  - Skipped samples: {skipped}")
+    
+    if len(samples) == 0:
+        print("❌ No valid samples found!")
+        return
     
     # آمار
     total_duration = sum(s[2] for s in samples)
-    print(f"\n📈 Statistics:")
-    print(f"  - Valid samples: {len(samples)}/{len(ds)}")
     print(f"  - Total duration: {total_duration/3600:.2f} hours")
     print(f"  - Average duration: {total_duration/len(samples):.2f} seconds")
     
