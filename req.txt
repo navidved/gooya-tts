@@ -1,0 +1,11 @@
+huggingface_hub
+datasets
+soundfile
+librosa
+torchmetrics
+jiwer
+tensorboard
+wandb
+matplotlib
+phonemizer
+hazm
