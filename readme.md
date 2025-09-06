@@ -134,129 +134,32 @@ python generate_phonemes.py
 ## ⚙️ مرحله 5: پیکربندی مدل
 
 ```bash
-cat > configs/vits2_persian.json << 'EOF'
-{
-  "train": {
-    "log_interval": 100,
-    "eval_interval": 1000,
-    "seed": 1234,
-    "epochs": 2000,
-    "learning_rate": 0.0002,
-    "betas": [0.8, 0.99],
-    "eps": 1e-09,
-    "batch_size": 32,
-    "fp16_run": true,
-    "lr_decay": 0.999875,
-    "segment_size": 8192,
-    "init_lr_ratio": 1,
-    "warmup_epochs": 0,
-    "c_mel": 45,
-    "c_kl": 1.0,
-    "grad_clip_thresh": 5.0,
-    "num_workers": 8,
-    "checkpoint_interval": 5000,
-    "use_sr_rates": false
-  },
-  "data": {
-    "training_files": "filelists/train_phoneme.txt",
-    "validation_files": "filelists/val_phoneme.txt",
-    "text_cleaners": [],
-    "max_wav_value": 32768.0,
-    "sampling_rate": 22050,
-    "filter_length": 1024,
-    "hop_length": 256,
-    "win_length": 1024,
-    "n_mel_channels": 80,
-    "mel_fmin": 0.0,
-    "mel_fmax": null,
-    "add_blank": true,
-    "n_speakers": 0,
-    "cleaned_text": true
-  },
-  "model": {
-    "use_mel_posterior_encoder": true,
-    "use_transformer_flows": true,
-    "transformer_flow_type": "fft",
-    "use_spk_conditioned_encoder": false,
-    "use_noise_scaled_mas": true,
-    "use_duration_discriminator": true,
-    "ms_istft_vits": false,
-    "mb_istft_vits": false,
-    "istft_vits": false,
-    "subbands": 4,
-    "gen_istft_n_fft": 16,
-    "gen_istft_hop_size": 4,
-    "inter_channels": 192,
-    "hidden_channels": 192,
-    "filter_channels": 768,
-    "n_heads": 2,
-    "n_layers": 6,
-    "kernel_size": 3,
-    "p_dropout": 0.1,
-    "resblock": "1",
-    "resblock_kernel_sizes": [3, 7, 11],
-    "resblock_dilation_sizes": [[1, 3, 5], [1, 3, 5], [1, 3, 5]],
-    "upsample_rates": [8, 8, 2, 2],
-    "upsample_initial_channel": 512,
-    "upsample_kernel_sizes": [16, 16, 4, 4],
-    "n_layers_q": 3,
-    "use_spectral_norm": false,
-    "use_sdp": true
-  }
-}
-EOF
+python optimize_config.py
 ```
 
 ---
 
 ## 🎯 مرحله 6: شروع آموزش
 
-### 6.1 - ایجاد اسکریپت آموزش
+## 🔍 بررسی‌های قبل از شروع
+
+# 1. مطمئن شوید در دایرکتوری درست هستید
+cd ~/vits2_pytorch
+
+# 2. بررسی فایل‌های مورد نیاز
+echo "Checking files..."
+[ -f "train.py" ] && echo "✓ train.py found" || echo "✗ train.py not found"
+[ -f "configs/vits2_persian.json" ] && echo "✓ Config found" || echo "✗ Config not found"
+[ -f "/home/modir/gooya-tts/filelists/train.txt" ] && echo "✓ Train data found" || echo "✗ Train data not found"
+
+# 3. بررسی GPU
+nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
+
+### ایجاد اسکریپت آموزش
 
 ```bash
-cat > train_model.sh << 'EOF'
-#!/bin/bash
-
-# تنظیمات محیطی
-export CUDA_VISIBLE_DEVICES=0
-export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
-export CUDA_LAUNCH_BLOCKING=0
-
-# نام مدل
-MODEL_NAME="persian_tts_vits2"
-CONFIG="configs/vits2_persian.json"
-
-# ایجاد دایرکتوری لاگ
-mkdir -p logs/$MODEL_NAME
-
-# شروع TensorBoard در background
-echo "Starting TensorBoard..."
-tensorboard --logdir=logs --port=6006 --bind_all &
-TB_PID=$!
-echo "TensorBoard PID: $TB_PID"
-
-# شروع آموزش
-echo "Starting training..."
-python train.py \
-    -c $CONFIG \
-    -m $MODEL_NAME \
-    2>&1 | tee logs/$MODEL_NAME/training.log
-
-echo "Training completed!"
-EOF
-
-chmod +x train_model.sh
-```
-
-### 6.2 - اجرای آموزش در tmux
-
-```bash
-# ایجاد session جدید
-tmux new -s vits2_training
-
 # اجرای آموزش
-./train_model.sh
-
+./train_persian_tts.sh
 # برای خروج از tmux: Ctrl+B then D
 # برای برگشت: tmux attach -t vits2_training
 ```
