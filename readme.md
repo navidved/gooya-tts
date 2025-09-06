@@ -86,7 +86,6 @@ pip install -r requirements.txt
 # نصب پکیج‌های اضافی
 pip install \
     huggingface_hub \
-    datasets \
     soundfile \
     librosa \
     tensorboard \
@@ -97,7 +96,8 @@ pip install \
     tqdm \
     jiwer \
     torchmetrics \
-    torchcodec
+
+pip install "datasets==2.18.0" --no-deps --force-reinstall
 
 # Build monotonic alignment
 cd monotonic_align
