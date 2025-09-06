@@ -118,7 +118,7 @@ def process_single_item(args):
 
 def main():
     print("🔄 Loading dataset from HuggingFace...")
-    ds = load_dataset(HF_DATASET, split="train", use_auth_token=True)
+    ds = load_dataset(HF_DATASET, split="train")
     ds = ds.cast_column("audio", Audio(sampling_rate=SR))
     
     print(f"📊 Total samples in dataset: {len(ds)}")

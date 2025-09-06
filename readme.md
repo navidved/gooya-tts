@@ -1,33 +1,20 @@
 # 📚 راهنمای کامل آموزش TTS فارسی با VITS2 روی HuggingFace
 
 ## 📋 مشخصات پروژه
-- **دیتاست**: 6795 نمونه × 15 ثانیه = ~28 ساعت صدا (عالی!)
-- **سرور**: H200 140GB VRAM + 197GB RAM + 1TB Disk
-- **مدل**: VITS2 Single-Speaker Persian TTS
+- دیتاست: 6795 نمونه × 15 ثانیه = ~28 ساعت صدا
+- سرور: H200 140GB VRAM + 197GB RAM + 1TB Disk
+- مدل: VITS2 Single-Speaker Persian TTS
 
 ---
 
-## 🚀 **مرحله 1: راه‌اندازی اولیه VM**
+## 🚀 مرحله 1: راه‌اندازی اولیه VM
 
 ```bash
-# 1.1 - بروزرسانی سیستم و نصب ابزارهای پایه
-sudo apt-get update && sudo apt-get upgrade -y
-sudo apt-get install -y \
-    build-essential \
-    cmake \
-    wget \
-    curl \
-    nvtop \
-    tmux \
-    ffmpeg \
-    libsndfile1 \
-    espeak-ng \
-    libespeak-ng1 \
-    python3-pip
+# بروزرسانی سیستم و نصب ابزارهای پایه
 
-sudo apt update
+sudo apt-get update && sudo apt-get upgrade -y
+
 sudo apt install -y \
-  build-essential \
   libssl-dev \
   zlib1g-dev \
   libbz2-dev \
@@ -44,26 +31,34 @@ sudo apt install -y \
   curl \
   git
 
+sudo apt-get install -y \
+    build-essential \
+    cmake \
+    nvtop \
+    tmux \
+    ffmpeg \
+    libsndfile1 \
+    espeak-ng \
+    libespeak-ng1 \
+    python3-pip
 
-# 1.3 - تنظیم متغیرهای محیطی
-echo 'export PATH=/usr/local/cuda/bin:$PATH' >> ~/.bashrc
-echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
-source ~/.bashrc
 
-# 1.4 - بررسی GPU
+# نصب نسخه مناسب python
+نصب python 3.10 با pyenv
+
+# بررسی GPU
 nvidia-smi
 ```
 
 ---
 
-## 🐍 **مرحله 2: نصب Miniconda و ایجاد محیط**
+## 🐍 مرحله 2: نصب VENV و ایجاد محیط
 
 ```bash
-# 2.1 - کلون repository
+# کلون repository
 git clone https://github.com/p0p4k/vits2_pytorch.git
 
-# 2.2 - ایجاد محیط مجازی
-# ایجاد venv
+# ایجاد محیط مجازی
 cd ~/vits2_pytorch
 python3 -m venv venv
 
@@ -82,13 +77,13 @@ python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {
 
 ---
 
-## 📦 **مرحله 3: نصب VITS2 و وابستگی‌ها**
+## 📦 مرحله 3: نصب VITS2 و وابستگی‌ها
 
 ```bash
-# 3.2 - نصب requirements
+# نصب requirements
 pip install -r requirements.txt
 
-# 3.3 - نصب پکیج‌های اضافی
+# نصب پکیج‌های اضافی
 pip install \
     huggingface_hub \
     datasets \
@@ -103,22 +98,25 @@ pip install \
     jiwer \
     torchmetrics
 
-# 3.4 - Build monotonic alignment
+# Build monotonic alignment
 cd monotonic_align
 mkdir -p monotonic_align
 python setup.py build_ext --inplace
 cd ..
 
-# 3.5 - ورود به HuggingFace
+# اجرا tmux
+tmux
+
+# ورود به HuggingFace
 huggingface-cli login
 # توکن خود را وارد کنید
 ```
 
 ---
 
-## 🎵 **مرحله 4: آماده‌سازی دیتاست**
+## 🎵 مرحله 4: آماده‌سازی دیتاست
 
-### 4.1 - ایجاد اسکریپت آماده‌سازی داده
+### ایجاد اسکریپت آماده‌سازی داده
 
 ```bash
 python prepare_dataset.py
@@ -180,7 +178,7 @@ python generate_phonemes.py
 
 ---
 
-## ⚙️ **مرحله 5: پیکربندی مدل**
+## ⚙️ مرحله 5: پیکربندی مدل
 
 ```bash
 cat > configs/vits2_persian.json << 'EOF'
@@ -258,7 +256,7 @@ EOF
 
 ---
 
-## 🎯 **مرحله 6: شروع آموزش**
+## 🎯 مرحله 6: شروع آموزش
 
 ### 6.1 - ایجاد اسکریپت آموزش
 
@@ -312,7 +310,7 @@ tmux new -s vits2_training
 
 ---
 
-## 📊 **مرحله 7: مانیتورینگ**
+## 📊 مرحله 7: مانیتورینگ
 
 ### 7.1 - اسکریپت مانیتورینگ real-time
 
@@ -391,7 +389,7 @@ ssh -L 6006:localhost:6006 user@server_ip
 
 ---
 
-## 🧪 **مرحله 8: تست مدل**
+## 🧪 مرحله 8: تست مدل
 
 ### 8.1 - اسکریپت inference
 
@@ -411,13 +409,13 @@ def load_model(checkpoint_path, config_path):
     
     with open(config_path, "r") as f:
         hps = json.load(f)
-    hps = utils.HParams(**hps)
+    hps = utils.HParams(hps)
     
     net_g = SynthesizerTrn(
         len(hps.symbols),
         hps.data.filter_length // 2 + 1,
         hps.train.segment_size // hps.data.hop_length,
-        **hps.model
+        hps.model
     ).cuda()
     
     _ = net_g.eval()
@@ -500,7 +498,7 @@ python inference.py
 
 ---
 
-## 🎉 **مرحله 9: Deployment**
+## 🎉 مرحله 9: Deployment
 
 ### 9.1 - ایجاد Web API
 
