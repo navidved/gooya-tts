@@ -95,12 +95,10 @@ def create_optimized_config():
             "use_sdp": True
         }
     }
-    
-    # ذخیره config
-    os.makedirs("vits2_pytorch/configs", exist_ok=True)
+
     
     # نسخه استاندارد
-    with open("vits2_pytorch/configs/vits2_persian.json", "w") as f:
+    with open("~/vits2_pytorch/configs/vits2_persian.json", "w") as f:
         json.dump(config, f, indent=2)
     
     # نسخه با فونم (اگر نیاز است)
@@ -110,12 +108,12 @@ def create_optimized_config():
     config_phoneme["data"]["text_cleaners"] = []
     config_phoneme["data"]["cleaned_text"] = True
     
-    with open("vits2_pytorch/configs/vits2_persian_phoneme.json", "w") as f:
+    with open("~/vits2_pytorch/configs/vits2_persian_phoneme.json", "w") as f:
         json.dump(config_phoneme, f, indent=2)
     
     print(f"\n✅ Configs created:")
-    print(f"  - vits2_pytorch/configs/vits2_persian.json (batch_size={config['train']['batch_size']})")
-    print(f"  - vits2_pytorch/configs/vits2_persian_phoneme.json")
+    print(f"  - ~/vits2_pytorch/configs/vits2_persian.json (batch_size={config['train']['batch_size']})")
+    print(f"  - ~/vits2_pytorch/configs/vits2_persian_phoneme.json")
     
     # نمایش توصیه‌ها
     print(f"\n📊 Recommendations for your system:")
