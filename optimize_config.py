@@ -6,7 +6,7 @@ from pathlib import Path
 
 def calculate_optimal_batch_size(vram_gb=140):
     """محاسبه batch_size بهینه بر اساس VRAM"""
-    if vram_gb >= 140:
+    if vram_gb >= 139:
         return 128
     elif vram_gb >= 80:
         return 64
