@@ -1,12 +1,10 @@
 import json
 import torch
 import os
+from pathlib import Path
 
 def calculate_optimal_batch_size(vram_gb=140):
     """محاسبه batch_size بهینه بر اساس VRAM"""
-    # تخمین: هر sample حدود 1-1.5GB در fp16/bf16
-    # با 140GB می‌توانیم حداقل 96 sample
-    
     if vram_gb >= 140:
         return 128
     elif vram_gb >= 80:
@@ -42,7 +40,7 @@ def create_optimized_config():
             "eps": 1e-09,
             "batch_size": optimal_batch,
             "fp16_run": False,
-            "bf16_run": True if vram_gb >= 80 else False,  # BF16 برای H100/A100
+            "bf16_run": True,  # BF16 برای H200
             "lr_decay": 0.999875,
             "segment_size": 8192,
             "init_lr_ratio": 1,
@@ -52,7 +50,6 @@ def create_optimized_config():
             "grad_clip_thresh": 5.0,
             "num_workers": min(32, os.cpu_count() or 8),
             "checkpoint_interval": 5000,
-            "use_flash_attn": vram_gb >= 80,  # Flash Attention برای H100/A100
         },
         "data": {
             "training_files": "filelists/train.txt",
@@ -77,11 +74,11 @@ def create_optimized_config():
             "use_spk_conditioned_encoder": False,
             "use_noise_scaled_mas": True,
             "use_duration_discriminator": True,
-            "inter_channels": 256 if vram_gb >= 80 else 192,
-            "hidden_channels": 256 if vram_gb >= 80 else 192,
-            "filter_channels": 1024 if vram_gb >= 80 else 768,
-            "n_heads": 4 if vram_gb >= 80 else 2,
-            "n_layers": 8 if vram_gb >= 80 else 6,
+            "inter_channels": 256,  # بزرگتر برای H200
+            "hidden_channels": 256,
+            "filter_channels": 1024,
+            "n_heads": 4,
+            "n_layers": 8,
             "kernel_size": 3,
             "p_dropout": 0.1,
             "resblock": "1",
@@ -95,43 +92,51 @@ def create_optimized_config():
             "use_sdp": True
         }
     }
-
     
-    # نسخه استاندارد
-    with open("~/vits2_pytorch/configs/vits2_persian.json", "w") as f:
+    # مسیر صحیح برای ذخیره در vits2_pytorch
+    vits2_path = Path.home() / "vits2_pytorch" / "configs"
+    vits2_path.mkdir(parents=True, exist_ok=True)
+    
+    # ذخیره در vits2_pytorch/configs
+    config_path = vits2_path / "vits2_persian.json"
+    with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
     
-    # نسخه با فونم (اگر نیاز است)
+    # نسخه با فونم
     config_phoneme = config.copy()
     config_phoneme["data"]["training_files"] = "filelists/train_phoneme.txt"
     config_phoneme["data"]["validation_files"] = "filelists/val_phoneme.txt"
     config_phoneme["data"]["text_cleaners"] = []
     config_phoneme["data"]["cleaned_text"] = True
     
-    with open("~/vits2_pytorch/configs/vits2_persian_phoneme.json", "w") as f:
+    config_phoneme_path = vits2_path / "vits2_persian_phoneme.json"
+    with open(config_phoneme_path, "w") as f:
         json.dump(config_phoneme, f, indent=2)
     
-    print(f"\n✅ Configs created:")
-    print(f"  - ~/vits2_pytorch/configs/vits2_persian.json (batch_size={config['train']['batch_size']})")
-    print(f"  - ~/vits2_pytorch/configs/vits2_persian_phoneme.json")
+    print(f"\n✅ Configs created successfully:")
+    print(f"  1. {config_path}")
+    print(f"  2. {config_phoneme_path}")
     
-    # نمایش توصیه‌ها
-    print(f"\n📊 Recommendations for your system:")
-    print(f"  - Optimal batch size: {optimal_batch}")
-    print(f"  - BF16 training: {'Yes ✅' if config['train']['bf16_run'] else 'No'}")
-    print(f"  - Flash Attention: {'Yes ✅' if vram_gb >= 80 else 'No'}")
-    print(f"  - Model size: {'Large' if vram_gb >= 80 else 'Standard'}")
+    # نمایش توصیه‌ها برای H200
+    print(f"\n📊 Optimized settings for NVIDIA H200 (140GB):")
+    print(f"  - Batch size: {optimal_batch}")
+    print(f"  - BF16 training: ✅ Enabled")
+    print(f"  - Model channels: 256 (Large)")
+    print(f"  - Attention heads: 4")
+    print(f"  - Transformer layers: 8")
+    print(f"  - Workers: {config['train']['num_workers']}")
     
     # تخمین سرعت آموزش
-    samples_per_sec = optimal_batch * 2  # تخمینی
-    total_samples = 6500  # از دیتاست شما
-    steps_per_epoch = total_samples / optimal_batch
-    time_per_epoch = steps_per_epoch / samples_per_sec / 60  # دقیقه
+    print(f"\n⏱️ Training estimates for H200:")
+    print(f"  - Steps per epoch: ~{6500/optimal_batch:.0f}")
+    print(f"  - Estimated speed: ~{optimal_batch*2:.0f} samples/sec")
+    print(f"  - Time per epoch: ~{6500/optimal_batch/60:.1f} minutes")
+    print(f"  - To 200k steps: ~15-20 hours")
     
-    print(f"\n⏱️ Training estimates:")
-    print(f"  - Steps per epoch: {steps_per_epoch:.0f}")
-    print(f"  - Time per epoch: ~{time_per_epoch:.1f} minutes")
-    print(f"  - Total training time (200k steps): ~{200000/samples_per_sec/3600:.1f} hours")
+    print(f"\n💡 Tips for H200:")
+    print(f"  1. You can try batch_size=160 or even 192")
+    print(f"  2. Use torch.compile() for 20-30% speedup")
+    print(f"  3. Enable Flash Attention 2 in training script")
 
 if __name__ == "__main__":
     create_optimized_config()
